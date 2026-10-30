@@ -1,0 +1,1 @@
+export default [{languageOptions: {globals: {window: "readonly", document: "readonly", console: "readonly", AudioContext: "readonly", webkitAudioContext: "readonly", URL: "readonly", FileReader: "readonly", requestAnimationFrame: "readonly", Uint8Array: "readonly", Math: "readonly", parseInt: "readonly", parseFloat: "readonly", isNaN: "readonly"}}}];

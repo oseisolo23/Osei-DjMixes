@@ -1,0 +1,6 @@
+{
+  "name": "Osei DJ Mixer",
+  "description": "Professional Media Player & Soul Mixer Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

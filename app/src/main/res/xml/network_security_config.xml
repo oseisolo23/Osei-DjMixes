@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Default HTTPS for all network communication -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Cleartext permitted ONLY for specific pre-configured live Radio & TV streaming endpoints -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">144.217.14.88</domain>
+        <domain includeSubdomains="false">173.249.50.205</domain>
+        <domain includeSubdomains="false">181.119.66.28</domain>
+        <domain includeSubdomains="false">190.11.225.124</domain>
+        <domain includeSubdomains="false">193.46.58.239</domain>
+        <domain includeSubdomains="false">23.237.104.106</domain>
+        <domain includeSubdomains="false">41.205.70.146</domain>
+        <domain includeSubdomains="false">41.205.77.102</domain>
+        <domain includeSubdomains="false">45.181.87.106</domain>
+        <domain includeSubdomains="false">45.189.62.33</domain>
+        <domain includeSubdomains="false">46.32.176.50</domain>
+        <domain includeSubdomains="false">69.64.57.208</domain>
+        <domain includeSubdomains="false">89.39.189.52</domain>
+        <domain includeSubdomains="false">africatv.live.net.sa</domain>
+        <domain includeSubdomains="false">citi973fm.radioca.st</domain>
+        <domain includeSubdomains="false">mightytv.srfms.com</domain>
+        <domain includeSubdomains="false">mn-nl.mncdn.com</domain>
+        <domain includeSubdomains="false">mounthoreb1.primcast.com</domain>
+        <domain includeSubdomains="false">sample.vodobox.net</domain>
+        <domain includeSubdomains="false">stream.radiojar.com</domain>
+        <domain includeSubdomains="false">stream.zeno.fm</domain>
+        <domain includeSubdomains="false">stream2.dynalias.com</domain>
+        <domain includeSubdomains="false">strm112.1.fm</domain>
+        <domain includeSubdomains="false">sweetmelodies.tk</domain>
+    </domain-config>
+</network-security-config>

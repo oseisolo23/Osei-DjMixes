@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 Web Audio DJ Mixer</title>
+    <style>
+        :root {
+            --frosted-navy: #0A1529;
+            --classic-gold: #D4AF37;
+            --neon-blue: #00E5FF;
+            --deep-blue: #050A14;
+            --soft-white: #E1E8F5;
+            --neon-red: #FF3B30;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--deep-blue);
+            color: var(--soft-white);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+
+        .studio-container {
+            width: 100%;
+            max-width: 860px;
+            background: linear-gradient(135deg, rgba(10, 21, 41, 0.95) 0%, rgba(5, 10, 20, 0.98) 100%);
+            border: 2px solid var(--classic-gold);
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .studio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 12px;
+            width: 100%;
+        }
+
+        .studio-title {
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            color: var(--classic-gold);
+            text-transform: uppercase;
+        }
+
+        .system-status {
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--neon-blue);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--neon-blue);
+            animation: status-pulse 1.5s infinite;
+        }
+
+        /* Dual Deck Layout Construction */
+        .decks-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .decks-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .deck-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        .deck-a {
+            border-top: 4px solid var(--classic-gold);
+        }
+
+        .deck-b {
+            border-top: 4px solid var(--neon-blue);
+        }
+
+        .deck-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+
+        .badge-a {
+            background-color: rgba(212, 175, 55, 0.15);
+            color: var(--classic-gold);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .badge-b {
+            background-color: rgba(0, 229, 255, 0.15);
+            color: var(--neon-blue);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+        }
+
+        .header-controls {
+            align-self: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .btn-load {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            color: rgba(225, 232, 245, 0.6);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-load:hover {
+            border-color: #FFFFFF;
+            color: #FFFFFF;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .track-info {
+            text-align: center;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .track-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #FFFFFF;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 8px;
+        }
+
+        /* Tactile Jogwheel */
+        .jogwheel-container {
+            position: relative;
+            width: 154px;
+            height: 154px;
+            margin-bottom: 14px;
+        }
+
+        .jogwheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle, #101622 10%, #060910 60%, #010204 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7), inset 0 0 15px rgba(0,0,0,0.9);
+            position: relative;
+            cursor: pointer;
+            border: 6px solid rgba(255, 255, 255, 0.02);
+            touch-action: none;
+        }
+
+        .jogwheel.playing {
+            animation: spin 10s linear infinite;
+        }
+
+        .jogwheel-a.playing {
+            border-color: rgba(212, 175, 55, 0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7), inset 0 0 15px rgba(0,0,0,0.9), 0 0 15px rgba(212, 175, 55, 0.1);
+        }
+
+        .jogwheel-b.playing {
+            border-color: rgba(0, 229, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7), inset 0 0 15px rgba(0,0,0,0.9), 0 0 15px rgba(0, 229, 255, 0.1);
+        }
+
+        .vinyl-grooves {
+            position: absolute;
+            width: 85%;
+            height: 85%;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 50%;
+        }
+
+        .vinyl-grooves::before {
+            content: '';
+            position: absolute;
+            top: 15%; left: 15%; right: 15%; bottom: 15%;
+            border: 1.5px dashed rgba(255, 255, 255, 0.03);
+            border-radius: 50%;
+        }
+
+        .jogwheel-center {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--frosted-navy);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+
+        .jogwheel-center-a {
+            border-color: var(--classic-gold);
+        }
+
+        .jogwheel-center-b {
+            border-color: var(--neon-blue);
+        }
+
+        .jogwheel-marker {
+            position: absolute;
+            top: 4px;
+            width: 4px;
+            height: 12px;
+            border-radius: 20px;
+        }
+
+        .jogwheel-center-a .jogwheel-marker {
+            background-color: var(--classic-gold);
+            box-shadow: 0 0 6px var(--classic-gold);
+        }
+
+        .jogwheel-center-b .jogwheel-marker {
+            background-color: var(--neon-blue);
+            box-shadow: 0 0 6px var(--neon-blue);
+        }
+
+        .jogwheel-icon {
+            font-size: 16px;
+        }
+
+        /* Seekbar ranges */
+        .seek-container {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            font-family: monospace;
+            color: rgba(225, 232, 245, 0.5);
+            margin-bottom: 6px;
+        }
+
+        .range-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #FFFFFF;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .deck-a .range-slider::-webkit-slider-thumb {
+            background: var(--classic-gold);
+            box-shadow: 0 0 6px var(--classic-gold);
+        }
+
+        .deck-b .range-slider::-webkit-slider-thumb {
+            background: var(--neon-blue);
+            box-shadow: 0 0 6px var(--neon-blue);
+        }
+
+        /* Physical mixing buttons */
+        .deck-buttons {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            border: none;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .btn-transport {
+            height: 38px;
+            padding: 0 16px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-play-a {
+            background: linear-gradient(135deg, var(--classic-gold) 0%, #aa8411 100%);
+            color: #050A14;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+        }
+
+        .btn-play-b {
+            background: linear-gradient(135deg, var(--neon-blue) 0%, #00aabf 100%);
+            color: #050A14;
+            box-shadow: 0 4px 12px rgba(0, 229, 255, 0.2);
+        }
+
+        .btn-play-a.playing-state,
+        .btn-play-b.playing-state {
+            background: #1a1a1a;
+            color: #FFFFFF;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .deck-a .btn-play-a.playing-state {
+            border-color: var(--classic-gold);
+            color: var(--classic-gold);
+            box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+        }
+
+        .deck-b .btn-play-b.playing-state {
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+        }
+
+        /* 3-Band Equalizer & Speed Sliders */
+        .eq-strip {
+            display: flex;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 14px;
+            padding: 12px;
+            gap: 12px;
+            justify-content: space-around;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            margin-bottom: 12px;
+        }
+
+        .eq-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .eq-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 5px;
+            height: 76px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .deck-a .eq-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--classic-gold);
+            cursor: pointer;
+        }
+
+        .deck-b .eq-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            cursor: pointer;
+        }
+
+        .eq-label {
+            font-size: 8px;
+            font-weight: 800;
+            color: rgba(225, 232, 245, 0.4);
+            letter-spacing: 0.5px;
+        }
+
+        .eq-value {
+            font-size: 8px;
+            font-family: monospace;
+            color: rgba(225, 232, 245, 0.6);
+        }
+
+        /* Volume channel fader styling */
+        .deck-volume-fader-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            background: rgba(255,225,255,0.01);
+            padding: 4px 12px;
+        }
+
+        .deck-volume-slider {
+            flex: 1;
+        }
+
+        /* Real-Time Frequency Spectrum Visualizer */
+        .spectral-visualizer {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 3px;
+            height: 28px;
+            width: 100%;
+            margin-top: 10px;
+            opacity: 0.15;
+            transition: opacity 0.3s ease;
+        }
+
+        .jogwheel.playing ~ .spectral-visualizer {
+            opacity: 0.85;
+        }
+
+        .canvas-visualizer {
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        /* Center Master Mixing console */
+        .mixer-master-board {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+        }
+
+        .crossfader-strip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 320px;
+            gap: 6px;
+        }
+
+        .crossfader-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 9px;
+            font-weight: 900;
+            color: rgba(225, 232, 245, 0.4);
+            letter-spacing: 1.5px;
+        }
+
+        .crossfader {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .crossfader::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            background: #FFFFFF;
+            border: 2px solid var(--deep-blue);
+            box-shadow: 0 0 10px rgba(255,255,255,0.4);
+            cursor: pointer;
+        }
+
+        /* Animations */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes status-pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="studio-container">
+    <div class="studio-header">
+        <span class="studio-title">HTML5 MASTER DUAL-DECK MIXER</span>
+        <div class="system-status">
+            <div class="status-dot"></div>
+            <span id="web-audio-status">WEB AUDIO API ACTIVE</span>
+        </div>
+    </div>
+
+    <!-- The Dual DJ Decks Grid -->
+    <div class="decks-grid">
+        
+        <!-- DECK A CONTROL SURFACE -->
+        <div class="deck-card deck-a" id="deck-card-a">
+            <span class="deck-badge badge-a">DECK A</span>
+            
+            <div class="header-controls" style="display: flex; gap: 6px;">
+                <button class="btn-load" onclick="triggerLoad('a')">FILE</button>
+                <button class="btn-load" onclick="triggerUrlPrompt('a')">URL</button>
+                <input type="file" id="file-input-a" accept="audio/*" style="display: none;" onchange="loadLocalFile(event, 'a')">
+            </div>
+
+            <div class="track-info">
+                <div class="track-title" id="track-title-a">mix.wav (Default)</div>
+            </div>
+
+            <!-- Platter/Jogwheel -->
+            <div class="jogwheel-container">
+                <div class="jogwheel jogwheel-a" id="jogwheel-a">
+                    <div class="vinyl-grooves"></div>
+                    <div class="jogwheel-center jogwheel-center-a">
+                        <div class="jogwheel-marker"></div>
+                        <span class="jogwheel-icon">&#127911;</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time & Tracker seekbars -->
+            <div class="seek-container">
+                <div class="time-labels">
+                    <span id="time-a">0:00</span>
+                    <span id="dur-a">0:00</span>
+                </div>
+                <input type="range" class="range-slider seek-slider" id="seek-a" min="0" max="100" value="0">
+            </div>
+
+            <!-- Main controls -->
+            <div class="deck-buttons">
+                <button class="btn btn-transport btn-play-a" id="play-a" onclick="togglePlayDeck('a')">PLAY</button>
+                <button class="btn btn-transport btn-secondary" onclick="cueDeck('a')">CUE</button>
+                <button class="btn btn-secondary btn-icon" id="loop-a" onclick="toggleLoop('a')" title="Toggle Loop">🔁</button>
+            </div>
+
+            <!-- 3-Band Equalizer & Speed knobs -->
+            <div class="eq-strip">
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="eq-low-a" min="0" max="2" step="0.02" value="1.0" oninput="setEq('a', 'low', this.value)">
+                    <span class="eq-label">LOW</span>
+                    <span class="eq-value" id="val-low-a">0dB</span>
+                </div>
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="eq-mid-a" min="0" max="2" step="0.02" value="1.0" oninput="setEq('a', 'mid', this.value)">
+                    <span class="eq-label">MID</span>
+                    <span class="eq-value" id="val-mid-a">0dB</span>
+                </div>
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="eq-high-a" min="0" max="2" step="0.02" value="1.0" oninput="setEq('a', 'high', this.value)">
+                    <span class="eq-label">HIGH</span>
+                    <span class="eq-value" id="val-high-a">0dB</span>
+                </div>
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="speed-a" min="0.8" max="1.2" step="0.01" value="1.00" oninput="setSpeed('a', this.value)">
+                    <span class="eq-label">SPEED</span>
+                    <span class="eq-value" id="val-speed-a">1.0x</span>
+                </div>
+            </div>
+
+            <!-- Level Fader -->
+            <div class="deck-volume-fader-container">
+                <span class="eq-label">VOL</span>
+                <input type="range" class="range-slider deck-volume-slider" id="vol-a" min="0" max="1" step="0.02" value="0.8" oninput="setChannelVolume('a', this.value)">
+            </div>
+
+            <!-- Spectral visualizer -->
+            <div id="visualizer-a" class="spectral-visualizer">
+                <canvas id="canvas-a" class="canvas-visualizer" width="300" height="60"></canvas>
+            </div>
+        </div>
+
+        <!-- DECK B CONTROL SURFACE -->
+        <div class="deck-card deck-b" id="deck-card-b">
+            <span class="deck-badge badge-b">DECK B</span>
+            
+            <div class="header-controls" style="display: flex; gap: 6px;">
+                <button class="btn-load" onclick="triggerLoad('b')">FILE</button>
+                <button class="btn-load" onclick="triggerUrlPrompt('b')">URL</button>
+                <input type="file" id="file-input-b" accept="audio/*" style="display: none;" onchange="loadLocalFile(event, 'b')">
+            </div>
+
+            <div class="track-info">
+                <div class="track-title" id="track-title-b">mix.wav (Default)</div>
+            </div>
+
+            <!-- Platter/Jogwheel -->
+            <div class="jogwheel-container">
+                <div class="jogwheel jogwheel-b" id="jogwheel-b">
+                    <div class="vinyl-grooves"></div>
+                    <div class="jogwheel-center jogwheel-center-b">
+                        <div class="jogwheel-marker"></div>
+                        <span class="jogwheel-icon">&#127911;</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time & Tracker seekbars -->
+            <div class="seek-container">
+                <div class="time-labels">
+                    <span id="time-b">0:00</span>
+                    <span id="dur-b">0:00</span>
+                </div>
+                <input type="range" class="range-slider seek-slider" id="seek-b" min="0" max="100" value="0">
+            </div>
+
+            <!-- Main controls -->
+            <div class="deck-buttons">
+                <button class="btn btn-transport btn-play-b" id="play-b" onclick="togglePlayDeck('b')">PLAY</button>
+                <button class="btn btn-transport btn-secondary" onclick="cueDeck('b')">CUE</button>
+                <button class="btn btn-secondary btn-icon" id="loop-b" onclick="toggleLoop('b')" title="Toggle Loop">🔁</button>
+            </div>
+
+            <!-- 3-Band Equalizer & Speed knobs -->
+            <div class="eq-strip">
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="eq-low-b" min="0" max="2" step="0.02" value="1.0" oninput="setEq('b', 'low', this.value)">
+                    <span class="eq-label">LOW</span>
+                    <span class="eq-value" id="val-low-b">0dB</span>
+                </div>
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="eq-mid-b" min="0" max="2" step="0.02" value="1.0" oninput="setEq('b', 'mid', this.value)">
+                    <span class="eq-label">MID</span>
+                    <span class="eq-value" id="val-mid-b">0dB</span>
+                </div>
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="eq-high-b" min="0" max="2" step="0.02" value="1.0" oninput="setEq('b', 'high', this.value)">
+                    <span class="eq-label">HIGH</span>
+                    <span class="eq-value" id="val-high-b">0dB</span>
+                </div>
+                <div class="eq-node">
+                    <input type="range" class="eq-slider" id="speed-b" min="0.8" max="1.2" step="0.01" value="1.00" oninput="setSpeed('b', this.value)">
+                    <span class="eq-label">SPEED</span>
+                    <span class="eq-value" id="val-speed-b">1.0x</span>
+                </div>
+            </div>
+
+            <!-- Level Fader -->
+            <div class="deck-volume-fader-container">
+                <span class="eq-label">VOL</span>
+                <input type="range" class="range-slider deck-volume-slider" id="vol-b" min="0" max="1" step="0.02" value="0.8" oninput="setChannelVolume('b', this.value)">
+            </div>
+
+            <!-- Spectral visualizer -->
+            <div id="visualizer-b" class="spectral-visualizer">
+                <canvas id="canvas-b" class="canvas-visualizer" width="300" height="60"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Master controller board (faders/crossfaders) -->
+    <div class="mixer-master-board">
+        <div class="crossfader-strip">
+            <div class="crossfader-labels">
+                <span>DECK A</span>
+                <span>CROSSFADER</span>
+                <span>DECK B</span>
+            </div>
+            <input type="range" class="crossfader" id="crossfader" min="0" max="100" value="50" oninput="updateCrossfader(this.value)">
+        </div>
+    </div>
+</div>
+
+<!-- Underlying streams used by Web Audio API -->
+<audio id="audio-deck-a" src="https://applet.local/mix.wav" preload="auto" ></audio>
+<audio id="audio-deck-b" src="https://applet.local/mix.wav" preload="auto" ></audio>
+
+<script>
+    // State
+    let audioCtx = null;
+    let nodesSetup = false;
+    
+    // Nodes
+    let sourceA, sourceB;
+    let lowNodeA, midNodeA, highNodeA, volumeNodeA, analyserA;
+    let lowNodeB, midNodeB, highNodeB, volumeNodeB, analyserB;
+
+    let isSeeking = { a: false, b: false };
+    let channelVolumes = { a: 0.8, b: 0.8 };
+    let crossfaderValue = 50;
+
+    // Elements
+    const audioDecA = document.getElementById('audio-deck-a');
+    const audioDecB = document.getElementById('audio-deck-b');
+    const seekSliderA = document.getElementById('seek-a');
+    const seekSliderB = document.getElementById('seek-b');
+
+    // Parse track title from parameters
+    const searchParams = new window.URLSearchParams(window.location.search);
+    const customTitle = searchParams.get('title');
+    if (customTitle) {
+        const decoded = customTitle;
+        document.getElementById('track-title-a').textContent = decoded;
+        document.getElementById('track-title-b').textContent = decoded;
+    }
+
+    // Initialize Web Audio API components
+    function initAudioContext() {
+        if (audioCtx) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return;
+        }
+
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            setupWebAudioNodes();
+            document.getElementById('web-audio-status').textContent = 'WEB AUDIO API CONNECTED';
+        } catch(e) {
+            console.error('Failed to init Web Audio API Context:', e);
+            document.getElementById('web-audio-status').textContent = 'WEB AUDIO API ERROR';
+        }
+    }
+
+    function setupWebAudioNodes() {
+        if (nodesSetup) return;
+
+        // Source node generation
+        sourceA = audioCtx.createMediaElementSource(audioDecA);
+        sourceB = audioCtx.createMediaElementSource(audioDecB);
+
+        // Deck A Filter Tree
+        lowNodeA = audioCtx.createBiquadFilter(); lowNodeA.type = "lowshelf"; lowNodeA.frequency.value = 320;
+        midNodeA = audioCtx.createBiquadFilter(); midNodeA.type = "peaking"; midNodeA.frequency.value = 1000; midNodeA.Q.value = 1.0;
+        highNodeA = audioCtx.createBiquadFilter(); highNodeA.type = "highshelf"; highNodeA.frequency.value = 3200;
+        volumeNodeA = audioCtx.createGain();
+        analyserA = audioCtx.createAnalyser(); analyserA.fftSize = 64;
+
+        sourceA.connect(lowNodeA);
+        lowNodeA.connect(midNodeA);
+        midNodeA.connect(highNodeA);
+        highNodeA.connect(volumeNodeA);
+        volumeNodeA.connect(analyserA);
+        analyserA.connect(audioCtx.destination);
+
+        // Deck B Filter Tree
+        lowNodeB = audioCtx.createBiquadFilter(); lowNodeB.type = "lowshelf"; lowNodeB.frequency.value = 320;
+        midNodeB = audioCtx.createBiquadFilter(); midNodeB.type = "peaking"; midNodeB.frequency.value = 1000; midNodeB.Q.value = 1.0;
+        highNodeB = audioCtx.createBiquadFilter(); highNodeB.type = "highshelf"; highNodeB.frequency.value = 3200;
+        volumeNodeB = audioCtx.createGain();
+        analyserB = audioCtx.createAnalyser(); analyserB.fftSize = 64;
+
+        sourceB.connect(lowNodeB);
+        lowNodeB.connect(midNodeB);
+        midNodeB.connect(highNodeB);
+        highNodeB.connect(volumeNodeB);
+        volumeNodeB.connect(analyserB);
+        analyserB.connect(audioCtx.destination);
+
+        nodesSetup = true;
+
+        // Apply starting mixers
+        updateFaders();
+        updateVisualizers();
+    }
+
+    // Connect trigger file selections
+    function triggerLoad(deck) {
+        initAudioContext();
+        document.getElementById(`file-input-${deck}`).click();
+    }
+
+    function triggerUrlPrompt(deck) {
+        initAudioContext();
+        const urlStr = prompt("Enter a direct audio URL or Radio Stream (.mp3, .wav, Icecast). Note: YouTube extraction is currently down due to API shutdowns.");
+        if (!urlStr || urlStr.trim() === "") return;
+        
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+        audioNode.pause();
+        
+        const encodedUrl = encodeURIComponent(urlStr.trim());
+        audioNode.src = "https://applet.local/custom_stream?url=" + encodedUrl;
+        audioNode.load();
+        
+        // Update title
+        let displayTitle = urlStr;
+        if (urlStr.includes("youtube.com") || urlStr.includes("youtu.be")) {
+            displayTitle = "YouTube Link (" + (urlStr.split('v=')[1] || "Video").substring(0, 8) + "...)";
+        } else {
+            const lastSlash = urlStr.lastIndexOf('/');
+            if (lastSlash !== -1 && lastSlash < urlStr.length - 1) {
+                displayTitle = urlStr.substring(lastSlash + 1);
+            }
+        }
+        document.getElementById(`track-title-${deck}`).textContent = displayTitle;
+        document.getElementById(`time-${deck}`).textContent = "0:00";
+    }
+
+    // Handles picking and building local URL files local storage bypass
+    function loadLocalFile(event, deck) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        initAudioContext();
+        const objectURL = URL.createObjectURL(file);
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+
+        // Fade background loading
+        audioNode.pause();
+        audioNode.src = objectURL;
+        audioNode.load();
+
+        document.getElementById(`track-title-${deck}`).textContent = file.name;
+        document.getElementById(`time-${deck}`).textContent = "0:00";
+    }
+
+    // Translate EQ dial values back to decibels matching true hardware specifications
+    function mapSliderToDb(val) {
+        val = parseFloat(val);
+        if (val <= 0.0) return -40; // absolute cut off
+        if (val === 1.0) return 0;  // neutral
+        if (val > 1.0) {
+            return (val - 1.0) * 12; // neutral to max +12dB amplification
+        } else {
+            return (1.0 - val) * -26; // neutral down to -26dB attenuations
+        }
+    }
+
+    // Assign EQ values real time
+    function setEq(deck, band, val) {
+        initAudioContext();
+        if (!nodesSetup) return;
+
+        const mappedDb = mapSliderToDb(val);
+        const displayVal = mappedDb <= -40 ? "-∞" : (mappedDb > 0 ? "+" : "") + Math.round(mappedDb) + "dB";
+        document.getElementById(`val-${band}-${deck}`).textContent = displayVal;
+
+        if (deck === 'a') {
+            if (band === 'low') lowNodeA.gain.value = mappedDb;
+            if (band === 'mid') midNodeA.gain.value = mappedDb;
+            if (band === 'high') highNodeA.gain.value = mappedDb;
+        } else {
+            if (band === 'low') lowNodeB.gain.value = mappedDb;
+            if (band === 'mid') midNodeB.gain.value = mappedDb;
+            if (band === 'high') highNodeB.gain.value = mappedDb;
+        }
+    }
+
+    function setSpeed(deck, speed) {
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+        audioNode.playbackRate = parseFloat(speed);
+        document.getElementById(`val-speed-${deck}`).textContent = parseFloat(speed).toFixed(2) + "x";
+    }
+
+    function setChannelVolume(deck, volume) {
+        channelVolumes[deck] = parseFloat(volume);
+        updateFaders();
+    }
+
+    // Seamless, Constant-Power crossfading calculation
+    // Maintains absolute uniform acoustics sound output level regardless of transition point
+    function updateCrossfader(value) {
+        crossfaderValue = parseInt(value);
+        updateFaders();
+    }
+
+    function updateFaders() {
+        if (!nodesSetup) return;
+
+        const x = crossfaderValue / 100.0;
+        const volumeFactorA = Math.cos(x * Math.PI / 2.0);
+        const volumeFactorB = Math.sin(x * Math.PI / 2.0);
+
+        // Map combined relative master gains
+        volumeNodeA.gain.value = channelVolumes.a * volumeFactorA;
+        volumeNodeB.gain.value = channelVolumes.b * volumeFactorB;
+    }
+
+    // Deck Event listeners
+    function formatTime(seconds) {
+        if (isNaN(seconds) || seconds === Infinity) return "Live";
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    function setupDeckEvents(deck) {
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+        const playBtn = document.getElementById(`play-${deck}`);
+        const seekSlider = id(`seek-${deck}`);
+        const timeVal = id(`time-${deck}`);
+        const durVal = id(`dur-${deck}`);
+        const jogwheel = id(`jogwheel-${deck}`);
+
+        audioNode.addEventListener('durationchange', () => {
+            durVal.textContent = formatTime(audioNode.duration);
+            if (audioNode.duration === Infinity) { seekSlider.max = 100; seekSlider.disabled = true; } else { seekSlider.max = Math.floor(audioNode.duration) || 100; seekSlider.disabled = false; }
+        });
+
+        audioNode.addEventListener('timeupdate', () => {
+            if (!isSeeking[deck]) {
+                seekSlider.value = Math.floor(audioNode.currentTime) || 0;
+            }
+            timeVal.textContent = formatTime(audioNode.currentTime);
+        });
+
+        audioNode.addEventListener('play', () => {
+            playBtn.innerHTML = "PAUSE";
+            playBtn.classList.add('playing-state');
+            jogwheel.classList.add('playing');
+        });
+
+        audioNode.addEventListener('pause', () => {
+            playBtn.innerHTML = "PLAY";
+            playBtn.classList.remove('playing-state');
+            jogwheel.classList.remove('playing');
+        });
+
+        audioNode.addEventListener('ended', () => {
+            audioNode.currentTime = 0;
+            jogwheel.classList.remove('playing');
+        });
+
+        seekSlider.addEventListener('input', () => {
+            isSeeking[deck] = true;
+            timeVal.textContent = formatTime(seekSlider.value);
+        });
+
+        seekSlider.addEventListener('change', () => {
+            audioNode.currentTime = parseFloat(seekSlider.value);
+            isSeeking[deck] = false;
+        });
+
+        // Touch tactile vinyl scratches pitch bend tempo effects
+        let startTouchX = 0;
+        let originalSpeed = 1.0;
+        let scrubbing = false;
+
+        jogwheel.addEventListener('touchstart', (e) => {
+            initAudioContext();
+            startTouchX = e.touches[0].clientX;
+            originalSpeed = parseFloat(document.getElementById(`speed-${deck}`).value);
+            scrubbing = true;
+            audioNode.playbackRate = originalSpeed * 0.5; // temporary drag pitch slowdown
+        });
+
+        jogwheel.addEventListener('touchmove', (e) => {
+            if (!scrubbing) return;
+            const currentX = e.touches[0].clientX;
+            const delta = currentX - startTouchX;
+            // Map movement direction to real-time drag pitch speed rates
+            let modFactor = 1.0 + (delta / 120.0);
+            modFactor = Math.max(0.1, Math.min(3.0, modFactor));
+            audioNode.playbackRate = originalSpeed * modFactor;
+        });
+
+        jogwheel.addEventListener('touchend', () => {
+            scrubbing = false;
+            audioNode.playbackRate = originalSpeed; // return directly to pitch tempo speed value
+        });
+    }
+
+    function togglePlayDeck(deck) {
+        initAudioContext();
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+        if (audioNode.paused) {
+            audioNode.play().catch(e => console.error("Playback start error:", e));
+        } else {
+            audioNode.pause();
+        }
+    }
+
+    function cueDeck(deck) {
+        initAudioContext();
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+        audioNode.pause();
+        audioNode.currentTime = 0;
+    }
+
+    function toggleLoop(deck) {
+        initAudioContext();
+        const audioNode = deck === 'a' ? audioDecA : audioDecB;
+        audioNode.loop = !audioNode.loop;
+        const btn = document.getElementById(`loop-${deck}`);
+
+        if (audioNode.loop) {
+            btn.style.boxShadow = deck === 'a' ? '0 0 10px rgba(212, 175, 55, 0.5)' : '0 0 10px rgba(0, 229, 255, 0.5)';
+            btn.style.borderColor = deck === 'a' ? 'var(--classic-gold)' : 'var(--neon-blue)';
+            btn.style.color = deck === 'a' ? 'var(--classic-gold)' : 'var(--neon-blue)';
+        } else {
+            btn.style.boxShadow = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        }
+    }
+
+    // High performance spectrograph frequency bars animations loops
+    function updateVisualizers() {
+        if (!nodesSetup) {
+            requestAnimationFrame(updateVisualizers);
+            return;
+        }
+
+        const dataArrA = new Uint8Array(analyserA.frequencyBinCount);
+        const dataArrB = new Uint8Array(analyserB.frequencyBinCount);
+
+        const canvasA = document.getElementById('canvas-a');
+        const canvasB = document.getElementById('canvas-b');
+        const ctxA = canvasA.getContext('2d');
+        const ctxB = canvasB.getContext('2d');
+
+        function drawCanvasVisualizer(ctx, width, height, dataArray, color) {
+            ctx.clearRect(0, 0, width, height);
+            const barWidth = (width / dataArray.length) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                barHeight = (dataArray[i] / 255) * height;
+                
+                // Add a glow/professional effect
+                const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
+                gradient.addColorStop(0, color);
+                gradient.addColorStop(1, '#ffffff');
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+                
+                // Small cap on top
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(x, height - barHeight - 2, barWidth, 2);
+
+                x += barWidth + 1;
+            }
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            // Process Deck A Visuals
+            if (!audioDecA.paused) {
+                analyserA.getByteFrequencyData(dataArrA);
+                drawCanvasVisualizer(ctxA, canvasA.width, canvasA.height, dataArrA, '#D4AF37');
+            } else {
+                ctxA.clearRect(0, 0, canvasA.width, canvasA.height);
+                // Draw idling baseline
+                ctxA.fillStyle = '#D4AF37';
+                ctxA.fillRect(0, canvasA.height - 2, canvasA.width, 2);
+            }
+
+            // Process Deck B Visuals
+            if (!audioDecB.paused) {
+                analyserB.getByteFrequencyData(dataArrB);
+                drawCanvasVisualizer(ctxB, canvasB.width, canvasB.height, dataArrB, '#00E5FF');
+            } else {
+                ctxB.clearRect(0, 0, canvasB.width, canvasB.height);
+                // Draw idling baseline
+                ctxB.fillStyle = '#00E5FF';
+                ctxB.fillRect(0, canvasB.height - 2, canvasB.width, 2);
+            }
+        }
+        draw();
+    }
+
+    // Shortcuts
+    function id(selector) { return document.getElementById(selector); }
+
+    // Mount listeners
+    setupDeckEvents('a');
+    setupDeckEvents('b');
+
+    // Trigger audio initialization on early body interaction if any
+    document.body.addEventListener('touchstart', initAudioContext, { once: true });
+    document.body.addEventListener('click', initAudioContext, { once: true });
+
+</script>
+</body>
+</html>
